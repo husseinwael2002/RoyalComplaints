@@ -1130,6 +1130,19 @@ body{
                 <label>Product Type <span class="req">*</span></label>
                 <input type="text" id="c-product"/>
               </div>
+              <div class="lf">
+                <label>Packaging Type <span class="req">*</span></label>
+                <select id="c-packaging">
+                  <option value="">Select packaging…</option>
+                  <option>Bags (25kg)</option>
+                  <option>Bags (50kg)</option>
+                  <option>Jumbo Bags (Bulk Bags)</option>
+                  <option>Bulk (Loose)</option>
+                  <option>Pallets</option>
+                  <option>Container</option>
+                  <option>Other</option>
+                </select>
+              </div>
             </div>
           </div>
           <div class="step-btns">
@@ -1191,7 +1204,7 @@ body{
               <div class="fst-icon">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--lblue)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
               </div>
-              Supporting Evidence
+              Supporting Evidence <span class="req" style="font-size:.8rem">*</span>
             </div>
             <input type="file" id="file-input" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" style="display:none"/>
             <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
@@ -1199,7 +1212,7 @@ body{
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--lblue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               </div>
               <h4>Drop files here or click to upload</h4>
-              <p>Photos, PDFs, Word, Excel — up to 20 MB each</p>
+              <p>Photos, PDFs, Word, Excel — up to 20 MB each (at least 1 file required)</p>
             </div>
             <div class="upload-progress" id="upload-progress">
               <div class="upload-progress-bar" id="upload-progress-bar" style="width:0%"></div>
@@ -1543,7 +1556,7 @@ function goStep(n){
       }
     }
     if(currentStep===2){
-      if(!$('c-pi').value.trim()||!$('c-bl').value.trim()||!$('c-arrival').value||!$('c-product').value.trim()){
+      if(!$('c-pi').value.trim()||!$('c-bl').value.trim()||!$('c-arrival').value||!$('c-product').value.trim()||!$('c-packaging').value){
         showAlert('submit-alert','Please complete all shipment fields.');
         window.scrollTo({top:0,behavior:'smooth'});
         return;
@@ -1736,9 +1749,10 @@ $('btn-submit-complaint').addEventListener('click',async()=>{
         email=$('c-email').value.trim(),phone=$('c-phone').value.trim(),
         country=$('c-country').value,pi=$('c-pi').value.trim(),bl=$('c-bl').value.trim(),
         arrival=$('c-arrival').value,product=$('c-product').value.trim(),
+        packaging=$('c-packaging').value,
         category=getCategories().join(', '),desc=$('c-desc').value.trim();
 
-  if(!company||!contact||!email||!country||!pi||!bl||!arrival||!product||!category){
+  if(!company||!contact||!email||!country||!pi||!bl||!arrival||!product||!packaging||!category){
     showAlert('submit-alert','Please complete all required fields.');
     window.scrollTo({top:0,behavior:'smooth'});
     return;
@@ -1749,6 +1763,11 @@ $('btn-submit-complaint').addEventListener('click',async()=>{
     window.scrollTo({top:0,behavior:'smooth'});
     return;
   }
+  if(!selectedFiles.length){
+    showAlert('submit-alert','Please attach at least one supporting file (photo, PDF, or document) as evidence.');
+    goStep(4);
+    return;
+  }
   const btn=$('btn-submit-complaint');
   btn.innerHTML='<span class="spinner"></span> Submitting…';btn.disabled=true;
   clearAlert('submit-alert');
@@ -1756,7 +1775,7 @@ $('btn-submit-complaint').addEventListener('click',async()=>{
     // Convert files to base64 and attach to Firestore document
     const fileUrls = await uploadFiles(user.uid, null);
     const docRef=await db.collection('complaints').add({
-      company,contact,email,phone,country,pi,bl,arrival,product,categories:getCategories(),category:getCategories().join(', '),desc,
+      company,contact,email,phone,country,pi,bl,arrival,product,packaging,categories:getCategories(),category:getCategories().join(', '),desc,
       status:'pending',adminNote:'',files:fileUrls,
       userEmail:user.email,userId:user.uid,userName:user.displayName||user.email,
       createdAt:firebase.firestore.FieldValue.serverTimestamp(),
@@ -1764,7 +1783,7 @@ $('btn-submit-complaint').addEventListener('click',async()=>{
     });
 
     ['c-company','c-contact','c-email','c-phone','c-pi','c-bl','c-product','c-desc'].forEach(id=>$(id).value='');
-    $('c-country').value='';$('c-arrival').value='';$('c-category').value='';
+    $('c-country').value='';$('c-arrival').value='';$('c-category').value='';$('c-packaging').value='';
     ['lf-email','lf-phone','lf-bl'].forEach(id=>$(id)?.classList.remove('invalid'));
     selectedCategory='';selectedCategories=[];selectedFiles=[];renderFileList();$('other-cat-wrap').style.display='none';$('c-other-category').value='';
     document.querySelectorAll('.cat-option').forEach(o=>o.classList.remove('selected'));
@@ -1826,6 +1845,7 @@ function loadUserComplaints(uid){
           <div class="uc-field"><strong>Contact</strong><span>${d.contact}</span></div>
           <div class="uc-field"><strong>Country</strong><span>${d.country}</span></div>
           <div class="uc-field"><strong>Product</strong><span>${d.product}</span></div>
+          <div class="uc-field"><strong>Packaging</strong><span>${d.packaging||'—'}</span></div>
           <div class="uc-field"><strong>Arrival Date</strong><span>${d.arrival}</span></div>
         </div>
         <div class="uc-desc">${d.desc}</div>
@@ -1924,7 +1944,6 @@ function complaintCardHtml(c){
             <option value="rejected" ${c.status==='rejected'?'selected':''}>Rejected</option>
           </select>
           <button class="btn-sm-dark" onclick="openNoteModal('${c.id}',\`${(c.adminNote||'').replace(/`/g,'\\`')}\`)">${c.adminNote?'Edit note':'Add note'}</button>
-          <button class="btn-red btn-sm" onclick="deleteComplaint('${c.id}')">Delete</button>
         </div>
       </div>
       <div class="cc-company">${c.company}</div>
@@ -1936,6 +1955,7 @@ function complaintCardHtml(c){
       <div class="cc-field"><strong>Phone</strong><span>${c.phone}</span></div>
       <div class="cc-field"><strong>Country</strong><span>${c.country}</span></div>
       <div class="cc-field"><strong>Product Type</strong><span>${c.product}</span></div>
+      <div class="cc-field"><strong>Packaging Type</strong><span>${c.packaging||'—'}</span></div>
       <div class="cc-field"><strong>Arrival Date</strong><span>${c.arrival}</span></div>
     </div>
     <div class="cc-desc">${c.desc}</div>
@@ -1969,12 +1989,6 @@ $('btn-save-note').addEventListener('click',async()=>{
     $('modal-note').classList.remove('open');showToast('Note saved ✓');
   }catch(e){showToast('Error: '+e.message)}
 });
-
-async function deleteComplaint(id){
-  if(!confirm('Permanently delete this complaint?'))return;
-  try{await db.collection('complaints').doc(id).delete();showToast('Deleted')}
-  catch(e){showToast('Error: '+e.message)}
-}
 
 document.querySelectorAll('.modal-backdrop').forEach(el=>{
   el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open')});
